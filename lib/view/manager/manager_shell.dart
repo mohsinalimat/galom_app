@@ -166,7 +166,7 @@ class _ShellScaffoldState extends State<_ShellScaffold> {
   Widget build(BuildContext context) {
     final nav = context.watch<ManagerNavController>();
     final pendingLeaves = context.select<ManagerLeaveController, int>(
-      (c) => c.pendingCount,
+      (c) => c.managerApprovalCount,
     );
     _visited.add(nav.tab);
 

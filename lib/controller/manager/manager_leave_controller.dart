@@ -5,6 +5,7 @@ import 'package:location_tracker_app/service/manager_service.dart';
 
 enum LeaveFilter {
   pending('Pending'),
+  managerApproval('Manager Approval'),
   approved('Approved'),
   rejected('Rejected'),
   all('All');
@@ -14,6 +15,7 @@ enum LeaveFilter {
 
   bool matches(LeaveApplication l) => switch (this) {
     LeaveFilter.pending => l.isPending,
+    LeaveFilter.managerApproval => l.canAct,
     LeaveFilter.approved => l.status == 'Approved',
     LeaveFilter.rejected => l.status == 'Rejected',
     LeaveFilter.all => true,
@@ -44,7 +46,8 @@ class ManagerLeaveController with ChangeNotifier {
   String get search => _search;
   bool isBusy(String name) => _busy.contains(name);
 
-  int get pendingCount => _all.where((l) => l.isPending).length;
+  /// Leaves waiting on the manager (drives the home banner and nav badge).
+  int get managerApprovalCount => _all.where((l) => l.canAct).length;
   int count(LeaveFilter f) => _all.where(f.matches).length;
 
   List<LeaveApplication> get visible {
@@ -105,15 +108,16 @@ class ManagerLeaveController with ChangeNotifier {
 
   /// Returns null on success, or an error message to show.
   Future<String?> approve(LeaveApplication l) =>
-      _act(l, () => _service.approve(l.name), 'Approved');
+      _act(l, () => _service.approve(l.name), 'Approved', 1);
 
   Future<String?> reject(LeaveApplication l) =>
-      _act(l, () => _service.reject(l.name), 'Rejected');
+      _act(l, () => _service.reject(l.name), 'Rejected', 1);
 
   Future<String?> _act(
     LeaveApplication l,
     Future<void> Function() call,
     String newStatus,
+    int newDocstatus,
   ) async {
     if (_busy.contains(l.name)) return null;
     _busy.add(l.name);
@@ -122,7 +126,11 @@ class ManagerLeaveController with ChangeNotifier {
     try {
       await call();
       _all = List.unmodifiable(
-        _all.map((x) => x.name == l.name ? x.copyWith(status: newStatus) : x),
+        _all.map(
+          (x) => x.name == l.name
+              ? x.copyWith(status: newStatus, docstatus: newDocstatus)
+              : x,
+        ),
       );
     } on ManagerApiException catch (e) {
       error = e.message;

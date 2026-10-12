@@ -41,14 +41,20 @@ class LeaveApplication {
   String get displayName =>
       employeeName.trim().isNotEmpty ? employeeName.trim() : employee;
 
-  /// Open and not yet submitted: the manager can still approve or reject.
-  bool get isPending => status == 'Open' && docstatus == 0;
+  static const pendingManager = 'Pending for Manager Approval';
 
-  /// Status shown to the user ("Open" reads as "Pending").
+  /// Not yet submitted and not decided.
+  bool get isPending =>
+      docstatus == 0 && status != 'Approved' && status != 'Rejected';
+
+  /// The manager may approve/reject only at the manager stage. Leaves that
+  /// are "Open" or "Pending for Admin Approval" are view-only here.
+  bool get canAct => docstatus == 0 && status == pendingManager;
+
+  /// Status shown to the user, exactly as the server reports it.
   String get displayStatus {
     if (docstatus == 2) return 'Cancelled';
-    if (status == 'Open') return 'Pending';
-    return status.isEmpty ? 'Pending' : status;
+    return status.isEmpty ? 'Open' : status;
   }
 
   LeaveApplication copyWith({String? status, int? docstatus}) =>

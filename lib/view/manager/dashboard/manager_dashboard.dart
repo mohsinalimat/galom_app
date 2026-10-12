@@ -41,7 +41,7 @@ class _ManagerDashboardState extends State<ManagerDashboard> {
     final dash = context.watch<ManagerDashboardController>();
     final profile = context.watch<ManagerProfileController>().profile;
     final pendingLeaves = context.select<ManagerLeaveController, int>(
-      (c) => c.pendingCount,
+      (c) => c.managerApprovalCount,
     );
 
     return RefreshIndicator(
@@ -727,7 +727,7 @@ class _ModuleGrid extends StatelessWidget {
             ? ''
             : pendingLeaves == 0
             ? 'Nothing pending'
-            : '$pendingLeaves pending',
+            : '$pendingLeaves to approve',
         summary: const ModuleSummary(),
       ),
     ];

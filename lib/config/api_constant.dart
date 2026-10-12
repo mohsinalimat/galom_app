@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String host = "http://127.0.0.1:8000/";
+  static const String host = "https://uat-mettaapp.tbocloud.in/";
   static const String baseUrl = "$host/api/method/sales_pilot.Api.auth.";
   static const String galomBaseUrl = "$host/api/method/galom.galom.";
   static const String managerBaseUrl =

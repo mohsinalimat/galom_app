@@ -61,17 +61,7 @@ class ManagerTransactionDetailScreen extends StatelessWidget {
       status: StatusChip(d.status),
       amountLabel: 'Grand total',
       amount: MFormat.money(d.grandTotal),
-      footer: d.docstatus == 1
-          ? Row(
-              children: [
-                Expanded(
-                  child: _HeroProgress('Delivered', d.perDelivered ?? 0),
-                ),
-                const SizedBox(width: MSpace.lg),
-                Expanded(child: _HeroProgress('Billed', d.perBilled ?? 0)),
-              ],
-            )
-          : null,
+      footer: d.docstatus == 1 ? SizedBox() : null,
     ),
     SectionCard(
       title: 'Order information',

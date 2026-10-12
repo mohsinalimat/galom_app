@@ -49,8 +49,8 @@ class _Fake {
               'status': 'success',
               'applications': [
                 _leave('L3', 'Approved', docstatus: 1),
-                _leave('L1', 'Open'),
-                _leave('L2', 'Open'),
+                _leave('L1', 'Pending for Manager Approval'),
+                _leave('L2', 'Pending for Admin Approval'),
                 _leave('L4', 'Rejected', docstatus: 1),
               ],
             },
@@ -119,8 +119,11 @@ void main() {
     test('sorts pending first, filters and counts', () async {
       final c = ManagerLeaveController(service: _Fake().service);
       await c.load();
-      expect(c.pendingCount, 2);
+      expect(c.managerApprovalCount, 1);
       expect(c.visible.map((l) => l.name), ['L1', 'L2']);
+      expect(c.count(LeaveFilter.managerApproval), 1);
+      c.setFilter(LeaveFilter.managerApproval);
+      expect(c.visible.map((l) => l.name), ['L1']);
       c.setFilter(LeaveFilter.all);
       expect(c.visible.first.isPending, true);
       expect(c.count(LeaveFilter.approved), 1);
@@ -140,7 +143,7 @@ void main() {
       expect(req.url.queryParameters['docname'], 'L1');
       expect(req.headers['Cookie'], 'sid=sid');
       expect(c.byName('L1')!.status, 'Approved');
-      expect(c.pendingCount, 1);
+      expect(c.managerApprovalCount, 0);
     });
 
     test('reject failure keeps status and returns message', () async {
@@ -177,7 +180,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.text('Pending 2'), findsOneWidget);
-    expect(find.text('Approve'), findsNWidgets(2));
+    // Only the "Pending for Manager Approval" leave is actionable; the
+    // "Pending for Admin Approval" one is listed view-only.
+    expect(find.text('Approve'), findsOneWidget);
+    expect(find.text('Reject'), findsOneWidget);
     expect(find.textContaining('0.5 days (half day)'), findsOneWidget);
 
     await tester.tap(find.text('Approve').first);

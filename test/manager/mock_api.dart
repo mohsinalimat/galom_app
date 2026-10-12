@@ -211,7 +211,7 @@ final mockLeaveService = ManagerLeaveService(
               'from_date': '2026-10-12',
               'to_date': '2026-10-13',
               'total_leave_days': 2,
-              'status': 'Open',
+              'status': 'Pending for Manager Approval',
               'docstatus': 0,
             },
             {

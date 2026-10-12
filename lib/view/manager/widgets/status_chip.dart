@@ -24,6 +24,8 @@ import 'package:location_tracker_app/view/manager/theme/manager_theme.dart';
     case 'checked out (no check-in)':
     case 'pending':
     case 'open':
+    case 'pending for admin approval':
+    case 'pending for manager approval':
     case 'low stock':
       return (fg: MColors.orange, bg: MColors.orangeBg);
     case 'overdue':

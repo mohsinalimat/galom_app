@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 /// Switches to the Leaves tab (one tap from anywhere in the shell).
 void openLeaveRequests(BuildContext context) {
+  context.read<ManagerLeaveController>().setFilter(LeaveFilter.managerApproval);
   context.read<ManagerNavController>().goTo(ManagerTab.leaves);
 }
 
@@ -40,8 +41,8 @@ class _ManagerLeavesScreenState extends State<ManagerLeavesScreen> {
         children: [
           ManagerTabHeader(
             title: 'Leave requests',
-            subtitle: c.pendingCount > 0
-                ? '${c.pendingCount} waiting for your approval'
+            subtitle: c.managerApprovalCount > 0
+                ? '${c.managerApprovalCount} waiting for your approval'
                 : 'Approve or reject team leave',
           ),
           Padding(
@@ -119,9 +120,14 @@ class _ManagerLeavesScreenState extends State<ManagerLeavesScreen> {
       return centered(
         ManagerEmptyState(
           icon: Icons.beach_access_outlined,
-          title: c.filter == LeaveFilter.pending && c.search.isEmpty
-              ? 'No pending leave requests'
-              : 'No leave requests found',
+          title: c.search.isNotEmpty
+              ? 'No leave requests found'
+              : switch (c.filter) {
+                  LeaveFilter.pending => 'No pending leave requests',
+                  LeaveFilter.managerApproval =>
+                    'No leaves awaiting manager approval',
+                  _ => 'No leave requests found',
+                },
           filtered: c.search.isNotEmpty,
         ),
       );
@@ -229,11 +235,11 @@ class LeaveCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: MText.meta,
                     ),
+                    const SizedBox(height: 4),
+                    StatusChip(l.displayStatus, dense: true),
                   ],
                 ),
               ),
-              const SizedBox(width: MSpace.sm),
-              StatusChip(l.displayStatus, dense: true),
             ],
           ),
           const SizedBox(height: MSpace.sm),
@@ -267,7 +273,7 @@ class LeaveCard extends StatelessWidget {
               style: MText.meta,
             ),
           ],
-          if (l.isPending) ...[
+          if (l.canAct) ...[
             const SizedBox(height: MSpace.md),
             LeaveActions(leave: l),
           ],
@@ -289,26 +295,7 @@ class LeaveActions extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(approve ? 'Approve leave?' : 'Reject leave?'),
-        content: Text(
-          '${leave.displayName}\n${leave.leaveType} · ${leaveDays(leave)}\n${leaveDates(leave)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: approve ? MColors.green : MColors.red,
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(approve ? 'Approve' : 'Reject'),
-          ),
-        ],
-      ),
+      builder: (_) => _LeaveDecisionDialog(leave: leave, approve: approve),
     );
     if (ok != true) return;
     final error = approve ? await c.approve(leave) : await c.reject(leave);
@@ -379,6 +366,188 @@ class LeaveActions extends StatelessWidget {
   }
 }
 
+/// Confirmation for approve / reject: icon badge, leave summary, and
+/// full-width actions sized for small phones.
+class _LeaveDecisionDialog extends StatelessWidget {
+  const _LeaveDecisionDialog({required this.leave, required this.approve});
+
+  final LeaveApplication leave;
+  final bool approve;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = approve ? MColors.green : MColors.red;
+    final bg = approve ? MColors.greenBg : MColors.redBg;
+    return Dialog(
+      backgroundColor: MColors.surface,
+      surfaceTintColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(
+        horizontal: MSpace.xxl,
+        vertical: MSpace.xxl,
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MSpace.radius + 4),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 400),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(
+            MSpace.xl,
+            MSpace.xxl,
+            MSpace.xl,
+            MSpace.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+                child: Icon(
+                  approve ? Icons.check_rounded : Icons.close_rounded,
+                  color: color,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: MSpace.lg),
+              Text(
+                approve ? 'Approve leave?' : 'Reject leave?',
+                textAlign: TextAlign.center,
+                style: MText.section.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: MSpace.xs),
+              Text(
+                approve
+                    ? 'This leave will be approved and deducted from the balance.'
+                    : 'This request will be closed and cannot be undone.',
+                textAlign: TextAlign.center,
+                style: MText.meta,
+              ),
+              const SizedBox(height: MSpace.lg),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(MSpace.md),
+                decoration: BoxDecoration(
+                  color: MColors.background,
+                  borderRadius: BorderRadius.circular(MSpace.radiusSm),
+                  border: Border.all(color: MColors.divider),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        ManagerAvatar(name: leave.displayName, size: 36),
+                        const SizedBox(width: MSpace.sm + 2),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                leave.displayName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: MText.cardTitle,
+                              ),
+                              Text(
+                                leave.leaveType,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: MText.meta,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: MSpace.sm + 2),
+                      child: Divider(height: 1, color: MColors.divider),
+                    ),
+                    _DialogInfoRow(
+                      icon: Icons.event_outlined,
+                      text: leaveDates(leave),
+                    ),
+                    const SizedBox(height: 6),
+                    _DialogInfoRow(
+                      icon: Icons.timelapse_rounded,
+                      text: leaveDays(leave),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: MSpace.xl),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: color,
+                    minimumSize: const Size.fromHeight(46),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(MSpace.radiusSm),
+                    ),
+                  ),
+                  icon: Icon(
+                    approve ? Icons.check_rounded : Icons.close_rounded,
+                    size: 20,
+                  ),
+                  label: Text(
+                    approve ? 'Approve' : 'Reject',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+              const SizedBox(height: MSpace.xs),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  style: TextButton.styleFrom(
+                    foregroundColor: MColors.textSecondary,
+                    minimumSize: const Size.fromHeight(44),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DialogInfoRow extends StatelessWidget {
+  const _DialogInfoRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: MColors.textMuted),
+        const SizedBox(width: MSpace.sm),
+        Expanded(
+          child: Text(
+            text,
+            style: MText.meta.copyWith(
+              color: MColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Full leave details in a bottom sheet (reads live state by name so the
 /// status updates after approve/reject).
 Future<void> showLeaveDetail(BuildContext context, String name) {
@@ -429,10 +598,11 @@ class _LeaveDetailSheet extends StatelessWidget {
                           style: MText.section.copyWith(fontSize: 17),
                         ),
                         Text(l.employee, style: MText.meta),
+                        const SizedBox(height: 6),
+                        StatusChip(l.displayStatus),
                       ],
                     ),
                   ),
-                  StatusChip(l.displayStatus),
                 ],
               ),
               const SizedBox(height: MSpace.lg),
@@ -474,7 +644,7 @@ class _LeaveDetailSheet extends StatelessWidget {
               if (l.postingDate != null)
                 InfoRow('Applied on', MFormat.date(l.postingDate)),
               InfoRow('Application', l.name, copyable: true),
-              if (l.isPending) ...[
+              if (l.canAct) ...[
                 const SizedBox(height: MSpace.lg),
                 LeaveActions(
                   leave: l,

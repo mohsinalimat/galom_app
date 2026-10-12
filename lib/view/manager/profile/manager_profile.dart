@@ -211,11 +211,11 @@ class _ProfileHeader extends StatelessWidget {
                 text: 'Manager',
                 highlight: true,
               ),
-              if (profile.employeeId != null)
-                _HeaderPill(
-                  icon: Icons.badge_outlined,
-                  text: profile.employeeId!,
-                ),
+              // if (profile.employeeId != null)
+              //   _HeaderPill(
+              //     icon: Icons.badge_outlined,
+              //     text: profile.employeeId!,
+              //   ),
               if (profile.branch != null)
                 _HeaderPill(
                   icon: Icons.apartment_rounded,

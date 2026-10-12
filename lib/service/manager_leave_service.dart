@@ -45,33 +45,45 @@ class ManagerLeaveService {
   Future<void> reject(String name) =>
       _send('reject_leave_application', docname: name, post: true);
 
-  /// Returns Frappe's `message` object; throws [ManagerApiException] with a
-  /// readable message on any failure.
   Future<Map<String, dynamic>> _send(
     String method, {
     String? docname,
     bool post = false,
   }) async {
     final sid = await _readSid();
+
     if (sid == null || sid.isEmpty) {
+      debugPrint('LEAVE API ERROR: Session ID is missing');
+
       throw const ManagerApiException(
         ManagerService.sessionExpiredMessage,
         statusCode: 401,
         isSessionExpired: true,
       );
     }
+
     final uri = Uri.parse(
       '$_baseUrl$method',
     ).replace(queryParameters: docname == null ? null : {'docname': docname});
+
     final headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Cookie': 'sid=$sid',
     };
 
+    debugPrint('\n========== LEAVE API REQUEST ==========');
+    debugPrint('Method: ${post ? 'POST' : 'GET'}');
+    debugPrint('URL: $uri');
+    debugPrint('API Method: $method');
+    debugPrint('Docname: ${docname ?? 'N/A'}');
+    debugPrint('=======================================\n');
+
     http.Response res;
+
     try {
       final c = _client;
+
       final future = post
           ? (c != null
                 ? c.post(uri, headers: headers)
@@ -79,18 +91,43 @@ class ManagerLeaveService {
           : (c != null
                 ? c.get(uri, headers: headers)
                 : http.get(uri, headers: headers));
+
       res = await future.timeout(const Duration(seconds: 30));
+
+      debugPrint('\n========== LEAVE API RESPONSE ==========');
+      debugPrint('URL: $uri');
+      debugPrint('Status Code: ${res.statusCode}');
+      debugPrint('Response Headers: ${res.headers}');
+      debugPrint('Raw Response Body:\n${res.body}');
+      debugPrint('========================================\n');
     } on TimeoutException {
+      debugPrint('LEAVE API TIMEOUT: $uri');
+
       throw const ManagerApiException(
         'The server took too long to respond. Please try again.',
       );
-    } catch (e) {
-      debugPrint('Leave API [$method] network error: $e');
+    } catch (e, stackTrace) {
+      debugPrint('LEAVE API NETWORK ERROR: $e');
+      debugPrint('Stack Trace: $stackTrace');
+
       throw const ManagerApiException(
         'Unable to reach the server. Check your internet connection.',
       );
     }
-    return parseResponse(res.statusCode, res.body);
+
+    try {
+      final parsedResponse = parseResponse(res.statusCode, res.body);
+
+      debugPrint('\n========== PARSED API RESPONSE ==========');
+      debugPrint(const JsonEncoder.withIndent('  ').convert(parsedResponse));
+      debugPrint('=========================================\n');
+
+      return parsedResponse;
+    } catch (e, stackTrace) {
+      debugPrint('LEAVE API PARSING ERROR: $e');
+      debugPrint('Stack Trace: $stackTrace');
+      rethrow;
+    }
   }
 
   @visibleForTesting
